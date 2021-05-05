@@ -75,6 +75,19 @@ ___TEMPLATE_PARAMETERS___
         "type": "EQUALS"
       }
     ]
+  },
+  {
+    "type": "TEXT",
+    "name": "allowedOrigins",
+    "displayName": "Allowed Origins",
+    "simpleValueType": true,
+    "defaultValue": "*",
+    "valueValidators": [
+      {
+        "type": "NON_EMPTY"
+      }
+    ],
+    "help": "Enter a comma-separated list of origins (e.g. \u003cstrong\u003ehttps://www.teamsimmer.com,https://www.simoahava.com\u003c/strong\u003e or use the asterisk (\u003cstrong\u003e*\u003c/strong\u003e) as a wildcard. If the request comes from some other origin, the request will not be claimed. To pass an origin manually, add the \u003cstrong\u003e\u0026origin\u003d\u003cyour-origin\u003e\u003c/strong\u003e parameter to the request URL."
   }
 ]
 
@@ -82,10 +95,12 @@ ___TEMPLATE_PARAMETERS___
 ___SANDBOXED_JS_FOR_SERVER___
 
 const claimRequest = require('claimRequest');
+const getRequestHeader = require('getRequestHeader');
 const getRequestPath = require('getRequestPath');
 const getRequestQueryParameters = require('getRequestQueryParameters');
 const getTimestampMillis = require('getTimestampMillis');
 const logToConsole = require('logToConsole');
+const parseUrl = require('parseUrl');
 const returnResponse = require('returnResponse');
 const sendHttpGet = require('sendHttpGet');
 const setResponseBody = require('setResponseBody');
@@ -95,6 +110,8 @@ const templateDataStorage = require('templateDataStorage');
 
 const requestPath = getRequestPath();
 const requestParams = getRequestQueryParameters();
+
+const origin = getRequestHeader('origin') || (!!getRequestHeader('referer') && parseUrl(getRequestHeader('referer')).origin) || requestParams.origin;
 
 // Set max template storage cache to half of GTM container cache
 const cacheMaxTimeInMs = 450000;
@@ -112,6 +129,10 @@ const storedHeaders = storedJs + '_headers';
 const storedTimeout = storedJs + '_timeout';
 
 const httpEndpoint = 'https://www.googletagmanager.com/gtm.js?fps=s';
+
+const validateOrigin = () => {
+  return data.allowedOrigins === '*' || data.allowedOrigins.split(',').indexOf(origin) > -1;
+};
 
 const log = msg => {
   logToConsole('[GTM Loader] ' + msg);
@@ -161,6 +182,10 @@ const fetchLiveContainer = () => {
 if (requestPath === data.requestPath) {
   if (!containerId.match('^GTM-.+$')) {
     log('Invalid or missing container ID');
+    return;
+  }
+  if (!validateOrigin()) {
+    log('Request originated from invalid origin');
     return;
   }
   log('Processing request for ' + containerId);
@@ -321,6 +346,6 @@ scenarios: []
 
 ___NOTES___
 
-Created on 23/04/2021, 14:32:24
+Created on 05/05/2021, 15:48:06
 
 
