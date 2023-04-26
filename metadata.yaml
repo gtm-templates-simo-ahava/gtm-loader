@@ -1,9 +1,9 @@
 homepage: "https://www.simoahava.com/"
 versions:
-  # Latest version
+  - sha: 81f1898a6ebaa6e49c6a607a75c6bbd651b1a657
+    changeNotes: Add optional gzip content-encoding header (required for GCR)
   - sha: 25aaf51a69d3f8b14de158ecaaada09c9c3ca628
     changeNotes: Add support for custom dataLayer name
-  # Older versions
   - sha: 98a05f52a330795b21071721d1cc0b0d1f59fb64
     changeNotes: Add allowedOrigins option
   - sha: 2bd44078cc8e96c56202f11af2c447081081b25a
