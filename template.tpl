@@ -77,6 +77,13 @@ ___TEMPLATE_PARAMETERS___
     ]
   },
   {
+    "type": "CHECKBOX",
+    "name": "encodingHeader",
+    "checkboxText": "Set Encoding Header (Recommended for Cloud Run)",
+    "simpleValueType": true,
+    "help": "If you check this, a \"Content-Encoding\" header with the value \"gzip\" will be set in the response back to the browser."
+  },  
+  {
     "type": "TEXT",
     "name": "allowedOrigins",
     "displayName": "Allowed Origins",
@@ -146,6 +153,9 @@ const sendResponse = (response, headers, statusCode) => {
   for (const key in headers) {
     // Do not set the "expires" and "date" headers
     if (['expires', 'date'].indexOf(key) === -1) setResponseHeader(key, headers[key]);
+  }
+  if (data.encodingHeader) {
+    setResponseHeader('Content-Encoding', 'gzip');
   }
   returnResponse();
 };
