@@ -34,7 +34,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "TEXT",
     "name": "requestPath",
-    "displayName": "Request Path",
+    "displayName": "GTM Request Path",
     "simpleValueType": true,
     "defaultValue": "/gtm.js",
     "valueValidators": [
@@ -78,6 +78,37 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "CHECKBOX",
+    "name": "loadGa4",
+    "checkboxText": "Load GTAG",
+    "simpleValueType": true,
+    "help": "When enabled, the loaded web GTM container will also load GTAG from the server-side GTM container."
+  },
+  {
+    "type": "TEXT",
+    "name": "gtagRequestPath",
+    "displayName": "GTAG Request Path",
+    "simpleValueType": true,
+    "help": "Set to the path you\u0027ll use to fetch the GTAG. The default is \u003cstrong\u003e/gtag.js\u003c/strong\u003e, which means that a request to \u003cstrong\u003ehttps://your-gtm-server.com/gtag.js?id\u003dG-123456\u003c/strong\u003e will activate the Client.",
+    "defaultValue": "/gtag.js",
+    "valueValidators": [
+      {
+        "type": "REGEX",
+        "args": [
+          "^/.*$"
+        ]
+      }
+    ],
+    "alwaysInSummary": false,
+    "enablingConditions": [
+      {
+        "paramName": "loadGa4",
+        "paramValue": true,
+        "type": "EQUALS"
+      }
+    ]
+  },
+  {
+    "type": "CHECKBOX",
     "name": "encodingHeader",
     "checkboxText": "Set Encoding Header (Recommended for Cloud Run)",
     "simpleValueType": true,
@@ -105,7 +136,9 @@ const claimRequest = require('claimRequest');
 const getRequestHeader = require('getRequestHeader');
 const getRequestPath = require('getRequestPath');
 const getRequestQueryParameters = require('getRequestQueryParameters');
+const getRequestQueryString = require('getRequestQueryString');
 const getTimestampMillis = require('getTimestampMillis');
+const createRegex = require('createRegex');
 const logToConsole = require('logToConsole');
 const parseUrl = require('parseUrl');
 const returnResponse = require('returnResponse');
@@ -117,6 +150,7 @@ const templateDataStorage = require('templateDataStorage');
 
 const requestPath = getRequestPath();
 const requestParams = getRequestQueryParameters();
+const requestQuery = getRequestQueryString();
 
 const origin = getRequestHeader('origin') || (!!getRequestHeader('referer') && parseUrl(getRequestHeader('referer')).origin) || requestParams.origin;
 
@@ -131,6 +165,9 @@ const gtm_preview = requestParams.gtm_preview;
 const previewRequest = !!(gtm_auth && gtm_debug && gtm_preview);
 
 const dataLayerVariableNameParameter = requestParams.l ? '&l=' + requestParams.l : '';
+
+// Server-Side GTM hostname
+const host = getRequestHeader('host');
 
 // Set names for storage
 const storedJs = 'gtm_js_' + containerId + (requestParams.l ? '_' + requestParams.l : '');
@@ -160,9 +197,19 @@ const sendResponse = (response, headers, statusCode) => {
   returnResponse();
 };
 
+const replaceGtag = (body) => {
+  const gtagRegex = createRegex('/gtag/js', 'g');
+  return body.replace('www.googletagmanager.com', host).replace(gtagRegex, data.gtagRequestPath);
+};
+
 const fetchPreviewContainer = () => {
   log('Fetching preview container for ' + containerId);
   sendHttpGet(httpEndpoint + '&id=' + containerId + '&gtm_auth=' + gtm_auth + '&gtm_debug=' + gtm_debug + '&gtm_preview=' + gtm_preview + dataLayerVariableNameParameter, (statusCode, headers, body) => {
+
+    if(data.loadGa4 === true){
+      body = replaceGtag(body);
+    }
+
     sendResponse(body, headers, statusCode);
   }, {timeout: 1500});
 };
@@ -170,15 +217,20 @@ const fetchPreviewContainer = () => {
 const fetchLiveContainer = () => {
   const now = getTimestampMillis();
   const storageTimeout = now - cacheMaxTimeInMs;
-  if (!templateDataStorage.getItemCopy(storedJs) || 
+  if (!templateDataStorage.getItemCopy(storedJs) ||
       templateDataStorage.getItemCopy(storedTimeout) < storageTimeout) {
     log('Fetching live container from GTM servers for ' + containerId);
     sendHttpGet(httpEndpoint + '&id=' + containerId + dataLayerVariableNameParameter, (statusCode, headers, body) => {
+      if(data.loadGa4 === true){
+        body = replaceGtag(body);
+      }
+
       if (statusCode === 200) {
         templateDataStorage.setItemCopy(storedJs, body);
         templateDataStorage.setItemCopy(storedHeaders, headers);
         templateDataStorage.setItemCopy(storedTimeout, now);
       }
+
       sendResponse(body, headers, statusCode);
     }, {timeout: 1500});
   } else {
@@ -191,7 +243,23 @@ const fetchLiveContainer = () => {
   }
 };
 
-if (requestPath === data.requestPath) {
+const fetchUrl = (url) => {
+  sendHttpGet(url, (statusCode, headers, body) =>{
+    sendResponse(body, headers, statusCode);
+  }, {timeout: 1500});
+};
+
+if(requestPath === '/debug/bootstrap' || requestPath === '/debug/badge' || requestPath === '/ns.html'){
+  claimRequest();
+  const debugEndPoint = 'https://www.googletagmanager.com' + requestPath + '?' + requestQuery;
+  fetchUrl(debugEndPoint);
+}
+else if(requestPath === data.gtagRequestPath){
+  claimRequest();
+  const gtagEndPoint = 'https://www.googletagmanager.com/gtag/js?' + requestQuery;
+  fetchUrl(gtagEndPoint);
+}
+else if(requestPath === data.requestPath){
   if (!containerId.match('^GTM-.+$')) {
     log('Invalid or missing container ID');
     return;
@@ -202,7 +270,7 @@ if (requestPath === data.requestPath) {
   }
   log('Processing request for ' + containerId);
   claimRequest();
-  
+
   if (previewRequest) {
     fetchPreviewContainer();
   } else {
