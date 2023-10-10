@@ -78,7 +78,7 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "CHECKBOX",
-    "name": "loadGa4",
+    "name": "loadGtag",
     "checkboxText": "Load GTAG",
     "simpleValueType": true,
     "help": "When enabled, the loaded web GTM container will also load GTAG from the server-side GTM container."
@@ -101,7 +101,7 @@ ___TEMPLATE_PARAMETERS___
     "alwaysInSummary": false,
     "enablingConditions": [
       {
-        "paramName": "loadGa4",
+        "paramName": "loadGtag",
         "paramValue": true,
         "type": "EQUALS"
       }
@@ -206,7 +206,7 @@ const fetchPreviewContainer = () => {
   log('Fetching preview container for ' + containerId);
   sendHttpGet(httpEndpoint + '&id=' + containerId + '&gtm_auth=' + gtm_auth + '&gtm_debug=' + gtm_debug + '&gtm_preview=' + gtm_preview + dataLayerVariableNameParameter, (statusCode, headers, body) => {
 
-    if(data.loadGa4 === true){
+    if(data.loadGtag === true){
       body = replaceGtag(body);
     }
 
@@ -221,7 +221,7 @@ const fetchLiveContainer = () => {
       templateDataStorage.getItemCopy(storedTimeout) < storageTimeout) {
     log('Fetching live container from GTM servers for ' + containerId);
     sendHttpGet(httpEndpoint + '&id=' + containerId + dataLayerVariableNameParameter, (statusCode, headers, body) => {
-      if(data.loadGa4 === true){
+      if(data.loadGtag === true){
         body = replaceGtag(body);
       }
 
