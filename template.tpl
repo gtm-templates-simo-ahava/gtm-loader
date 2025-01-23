@@ -119,6 +119,7 @@ const requestPath = getRequestPath();
 const requestParams = getRequestQueryParameters();
 
 const origin = getRequestHeader('origin') || (!!getRequestHeader('referer') && parseUrl(getRequestHeader('referer')).origin) || requestParams.origin;
+const approvedResponseHeaders = ['last-modified', 'cache-control', 'content-type', 'vary', 'alt-svc', 'server', 'content-encoding'];
 
 // Set max template storage cache to half of GTM container cache
 const cacheMaxTimeInMs = 450000;
@@ -152,7 +153,7 @@ const sendResponse = (response, headers, statusCode) => {
   setResponseBody(response);
   for (const key in headers) {
     // Do not set the "expires" and "date" headers
-    if (['expires', 'date'].indexOf(key) === -1) setResponseHeader(key, headers[key]);
+    if (approvedResponseHeaders.indexOf(key) > -1) setResponseHeader(key, headers[key]);
   }
   if (data.encodingHeader) {
     setResponseHeader('Content-Encoding', 'gzip');
