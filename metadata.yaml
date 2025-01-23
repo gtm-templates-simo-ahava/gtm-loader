@@ -1,5 +1,7 @@
 homepage: "https://www.simoahava.com/"
 versions:
+  - sha: 1a32e4b8b5a92f49dc5badd4da8b05f6652a494c
+    changeNotes: Fix to allowlist headers from the CDN response to server response
   - sha: 81f1898a6ebaa6e49c6a607a75c6bbd651b1a657
     changeNotes: Add optional gzip content-encoding header (required for GCR)
   - sha: 25aaf51a69d3f8b14de158ecaaada09c9c3ca628
